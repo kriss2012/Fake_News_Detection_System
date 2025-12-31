@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, AsyncIterator
 import uvicorn
 import sys
+from contextlib import asynccontextmanager  # ✅ ADDED THIS IMPORT
 
 # Ensure the backend package directory is on sys.path so local imports work
 sys.path.insert(0, os.path.dirname(__file__))
