@@ -1,0 +1,25 @@
+services:
+  # Web Service (API)
+  - type: web
+    name: fake-news-api
+    env: python
+    plan: free
+    buildCommand: |
+      cd backend && pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: TESSERACT_LANG
+        value: eng
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Static Site (Frontend - optional)
+  - type: web
+    name: fake-news-frontend
+    env: static
+    plan: free
+    buildCommand: echo "Frontend ready"
+    publishPath: ./frontend
+    autoDeploy: true
