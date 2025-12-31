@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TruthLens | Fake News Predictor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(226, 232, 240, 1);
+        }
+        .loader {
+            border-top-color: #3b82f6;
+            animation: spinner 0.6s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen py-12 px-4 sm:px-6">
+    <div class="max-w-3xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight mb-2">
+                TruthLens <span class="text-blue-600">AI</span>
+            </h1>
+            <p class="text-slate-600 text-lg">Advanced analysis to detect misinformation in seconds.</p>
+        </div>
+
+        <div class="glass-card rounded-2xl shadow-xl overflow-hidden">
+            <!-- Tabs Header -->
+            <div class="flex border-b border-slate-200">
+                <button id="tab-text" onclick="switchTab('text')" class="flex-1 py-4 px-6 text-sm font-semibold transition-colors border-b-2 border-blue-600 text-blue-600">
+                    Paste Article Text
+                </button>
+                <button id="tab-file" onclick="switchTab('file')" class="flex-1 py-4 px-6 text-sm font-semibold transition-colors border-b-2 border-transparent text-slate-500 hover:text-slate-700">
+                    Upload Document
+                </button>
+            </div>
+
+            <div class="p-8">
+                <!-- Text Input Section -->
+                <div id="section-text" class="space-y-4">
+                    <label class="block text-sm font-medium text-slate-700">Article Content</label>
+                    <textarea 
+                        id="textInput" 
+                        class="w-full h-48 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none resize-none placeholder-slate-400"
+                        placeholder="Paste the full article text here for deep analysis..."></textarea>
+                    <button 
+                        onclick="predictText()" 
+                        id="btn-text"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md active:scale-[0.98] flex items-center justify-center">
+                        <span id="text-btn-label">Analyze Content</span>
+                        <div id="text-spinner" class="hidden loader w-5 h-5 border-2 border-white border-solid rounded-full ml-3"></div>
+                    </button>
+                </div>
+
+                <!-- File Upload Section -->
+                <div id="section-file" class="hidden space-y-4">
+                    <label class="block text-sm font-medium text-slate-700">Supported Formats: PDF, TXT, JPG, PNG</label>
+                    <div class="flex items-center justify-center w-full">
+                        <label for="fileInput" class="flex flex-col items-center justify-center w-full h-48 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                <svg class="w-10 h-10 mb-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                                <p class="mb-2 text-sm text-slate-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                                <p id="file-name" class="text-xs text-blue-600 font-medium mt-1">No file selected</p>
+                            </div>
+                            <input id="fileInput" type="file" class="hidden" onchange="updateFileName()" />
+                        </label>
+                    </div>
+                    <button 
+                        onclick="predictFile()" 
+                        id="btn-file"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md active:scale-[0.98] flex items-center justify-center">
+                        <span id="file-btn-label">Scan Document</span>
+                        <div id="file-spinner" class="hidden loader w-5 h-5 border-2 border-white border-solid rounded-full ml-3"></div>
+                    </button>
+                </div>
+
+                <!-- Result Section -->
+                <div class="mt-8 pt-8 border-t border-slate-100">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-slate-900">Analysis Result</h3>
+                        <button onclick="copyResult()" class="text-xs font-semibold text-blue-600 hover:text-blue-800 uppercase tracking-wider">Copy JSON</button>
+                    </div>
+                    <div class="bg-slate-900 rounded-xl p-5 overflow-x-auto min-h-[100px] flex items-center">
+                        <pre id="result" class="text-blue-400 text-sm font-mono leading-relaxed whitespace-pre-wrap">Waiting for input...</pre>
+                    </div>
+                    <p class="mt-4 text-xs text-slate-400 italic">Note: Analysis is performed by the TruthLens backend API. Accuracy may vary based on content complexity.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(type) {
+            const textBtn = document.getElementById('tab-text');
+            const fileBtn = document.getElementById('tab-file');
+            const textSec = document.getElementById('section-text');
+            const fileSec = document.getElementById('section-file');
+
+            if (type === 'text') {
+                textBtn.classList.add('border-blue-600', 'text-blue-600');
+                textBtn.classList.remove('border-transparent', 'text-slate-500');
+                fileBtn.classList.add('border-transparent', 'text-slate-500');
+                fileBtn.classList.remove('border-blue-600', 'text-blue-600');
+                textSec.classList.remove('hidden');
+                fileSec.classList.add('hidden');
+            } else {
+                fileBtn.classList.add('border-blue-600', 'text-blue-600');
+                fileBtn.classList.remove('border-transparent', 'text-slate-500');
+                textBtn.classList.add('border-transparent', 'text-slate-500');
+                textBtn.classList.remove('border-blue-600', 'text-blue-600');
+                fileSec.classList.remove('hidden');
+                textSec.classList.add('hidden');
+            }
+        }
+
+        function updateFileName() {
+            const input = document.getElementById('fileInput');
+            const nameDisplay = document.getElementById('file-name');
+            nameDisplay.textContent = input.files.length > 0 ? input.files[0].name : 'No file selected';
+        }
+
+        function toggleLoading(btnId, spinnerId, labelId, isLoading) {
+            const btn = document.getElementById(btnId);
+            const spinner = document.getElementById(spinnerId);
+            const label = document.getElementById(labelId);
+            
+            if (isLoading) {
+                btn.disabled = true;
+                btn.classList.add('opacity-80', 'cursor-not-allowed');
+                spinner.classList.remove('hidden');
+                label.textContent = "Processing...";
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('opacity-80', 'cursor-not-allowed');
+                spinner.classList.add('hidden');
+                label.textContent = btnId.includes('text') ? "Analyze Content" : "Scan Document";
+            }
+        }
+
+        async function predictText() {
+            const text = document.getElementById('textInput').value;
+            if (!text.trim()) return showStatus('Please enter some text first.');
+
+            toggleLoading('btn-text', 'text-spinner', 'text-btn-label', true);
+            const form = new FormData();
+            form.append('text', text);
+
+            try {
+                const res = await fetch('/predict-text', { method: 'POST', body: form });
+                const data = await res.json();
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+                document.getElementById('result').textContent = "Error: Could not reach the API backend.";
+            } finally {
+                toggleLoading('btn-text', 'text-spinner', 'text-btn-label', false);
+            }
+        }
+
+        async function predictFile() {
+            const f = document.getElementById('fileInput').files[0];
+            if (!f) return showStatus('Please select a file first.');
+
+            toggleLoading('btn-file', 'file-spinner', 'file-btn-label', true);
+            const form = new FormData();
+            form.append('file', f);
+
+            try {
+                const res = await fetch('/predict-file', { method: 'POST', body: form });
+                const data = await res.json();
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+                document.getElementById('result').textContent = "Error: Could not reach the API backend.";
+            } finally {
+                toggleLoading('btn-file', 'file-spinner', 'file-btn-label', false);
+            }
+        }
+
+        function showStatus(msg) {
+            document.getElementById('result').textContent = msg;
+        }
+
+        function copyResult() {
+            const resultText = document.getElementById('result').textContent;
+            const textArea = document.createElement("textarea");
+            textArea.value = resultText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            const btn = event.target;
+            const original = btn.textContent;
+            btn.textContent = "Copied!";
+            setTimeout(() => btn.textContent = original, 2000);
+        }
+    </script>
+</body>
+</html>
